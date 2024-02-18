@@ -6,7 +6,7 @@ import (
 	"time"
 
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
-	utils "github.com/kaedwen/speedtest/pkg/untils"
+	"github.com/kaedwen/speedtest/pkg/utils"
 	"github.com/showwin/speedtest-go/speedtest"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
