@@ -1,0 +1,9 @@
+[Unit]
+Description=Run speedtest to influx
+
+[Service]
+EnvironmentFile=/etc/default/speedtest
+ExecStart=/usr/local/bin/speedtest
+
+[Install]
+WantedBy=multi-user.target

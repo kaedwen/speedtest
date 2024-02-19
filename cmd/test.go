@@ -23,29 +23,44 @@ type TestResult struct {
 	DNS      bool
 }
 
+type TestHandler struct {
+	lg     *zap.Logger
+	cnf    *utils.TestConfig
+	client influxdb2.Client
+}
+
+func NewTestHandler(lg *zap.Logger) (*TestHandler, error) {
+	cnf, err := utils.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	client := influxdb2.NewClient(cnf.Host, cnf.Token)
+
+	return &TestHandler{lg, cnf, client}, nil
+}
+
 func NewTestCommand(lg *zap.Logger) *cobra.Command {
 	cmd := cobra.Command{
 		Use: "test",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			config, err := utils.GetConfig()
+			hndl, err := NewTestHandler(lg)
 			if err != nil {
 				return err
 			}
 
-			client := influxdb2.NewClient(config.Host, config.Token)
-
-			results, dns, err := test(ctx, lg, config)
+			results, dns, err := hndl.test(ctx)
 			if err == nil {
 				for _, result := range results {
-					err := save(ctx, client, config, &result, dns)
+					err := hndl.save(ctx, &result, dns)
 					if err != nil {
 						return err
 					}
 				}
 			} else {
-				err := save(ctx, client, config, &TestResult{
+				err := hndl.save(ctx, &TestResult{
 					Success: false,
 				}, dns)
 				if err != nil {
@@ -60,11 +75,11 @@ func NewTestCommand(lg *zap.Logger) *cobra.Command {
 	return &cmd
 }
 
-func test(ctx context.Context, lg *zap.Logger, config *utils.TestConfig) ([]TestResult, bool, error) {
+func (h *TestHandler) test(ctx context.Context) ([]TestResult, bool, error) {
 	var stc = speedtest.New()
 
 	user, _ := stc.FetchUserInfo()
-	lg.Info("user meta", zap.Any("info", user))
+	h.lg.Info("user meta", zap.Any("info", user))
 
 	serverList, _ := stc.FetchServers()
 	targets, _ := serverList.FindServer([]int{})
@@ -87,7 +102,7 @@ func test(ctx context.Context, lg *zap.Logger, config *utils.TestConfig) ([]Test
 			return nil, false, err
 		}
 
-		lg.Info("Result", zap.Duration("Latency", s.Latency), zap.Float64("Download", s.DLSpeed), zap.Float64("Upload", s.ULSpeed))
+		h.lg.Info("result", zap.Duration("Latency", s.Latency), zap.Float64("Download", s.DLSpeed), zap.Float64("Upload", s.ULSpeed))
 
 		results = append(results, TestResult{
 			Success:  true,
@@ -106,31 +121,31 @@ func test(ctx context.Context, lg *zap.Logger, config *utils.TestConfig) ([]Test
 		PreferGo: true,
 		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
 			d := net.Dialer{Timeout: 10 * time.Second}
-			return d.DialContext(ctx, network, net.JoinHostPort(config.DNS.Target, "53"))
+			return d.DialContext(ctx, network, net.JoinHostPort(h.cnf.DNS.Target, "53"))
 		},
 	}
 
 	dns := true
-	ip, err := r.LookupHost(context.Background(), config.DNS.Host)
+	ip, err := r.LookupHost(context.Background(), h.cnf.DNS.Host)
 	if err != nil || len(ip) == 0 {
 		dns = false
 	}
 
-	lg.Info("Speedtest RUN ok", zap.Bool("DNS", dns))
+	h.lg.Info("speedtest ok", zap.Bool("DNS", dns))
 
 	return results, dns, nil
 }
 
-func save(ctx context.Context, client influxdb2.Client, config *utils.TestConfig, result *TestResult, dns bool) error {
-	writeAPI := client.WriteAPIBlocking(config.Org, config.Bucket)
+func (h *TestHandler) save(ctx context.Context, result *TestResult, dns bool) error {
+	writeAPI := h.client.WriteAPIBlocking(h.cnf.Org, h.cnf.Bucket)
 
 	dp := influxdb2.NewPointWithMeasurement("download").
-		AddTag("id", config.ID).
+		AddTag("id", h.cnf.ID).
 		AddField("connected", utils.Btoi(dns)).
 		AddField("value", 0)
 
 	up := influxdb2.NewPointWithMeasurement("upload").
-		AddTag("id", config.ID).
+		AddTag("id", h.cnf.ID).
 		AddField("connected", utils.Btoi(dns)).
 		AddField("value", 0)
 
@@ -141,13 +156,19 @@ func save(ctx context.Context, client influxdb2.Client, config *utils.TestConfig
 			AddField("latency", result.Latency).
 			AddField("value", result.Download)
 
-		up = influxdb2.NewPointWithMeasurement("upload").
-			AddTag("server", result.Server).
+		up = up.AddTag("server", result.Server).
 			AddTag("host", result.Host).
 			AddField("distance", result.Distance).
 			AddField("latency", result.Latency).
 			AddField("value", result.Upload)
 	}
 
-	return writeAPI.WritePoint(ctx, dp, up)
+	err := writeAPI.WritePoint(ctx, dp, up)
+	if err != nil {
+		return err
+	}
+
+	h.lg.Info("result saved")
+
+	return nil
 }
