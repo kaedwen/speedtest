@@ -140,7 +140,7 @@ func (h *TestHandler) save(ctx context.Context, result *TestResult, dns bool) er
 	writeAPI := h.client.WriteAPIBlocking(h.cnf.Org, h.cnf.Bucket)
 
 	p := influxdb2.NewPointWithMeasurement(h.cnf.Measurement).
-		AddField("connected", false).
+		AddField("connected", dns).
 		AddField("distance", float64(0)).
 		AddField("latency", float64(0)).
 		AddField("download", float64(0)).
