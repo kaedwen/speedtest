@@ -6,12 +6,12 @@ import (
 )
 
 type TestConfig struct {
-	Org    string
-	Bucket string
-	Host   string
-	Token  string
-	ID     string
-	DNS    struct {
+	Org         string
+	Bucket      string
+	Host        string
+	Token       string
+	Measurement string
+	DNS         struct {
 		Target string
 		Host   string
 	}
@@ -28,9 +28,9 @@ func GetConfig() (*TestConfig, error) {
 		return nil, fmt.Errorf("no influx bucket given, please set the environment variable INFLUX_BUCKET_NAME")
 	}
 
-	id, has := os.LookupEnv("ID_TAG")
+	measurement, has := os.LookupEnv("INFLUX_MEASUREMENT")
 	if !has {
-		return nil, fmt.Errorf("no id tag given, please set the environment variable ID_TAG")
+		measurement = "speed"
 	}
 
 	host, has := os.LookupEnv("INFLUX_HOST")
@@ -49,11 +49,11 @@ func GetConfig() (*TestConfig, error) {
 	}
 
 	return &TestConfig{
-		Org:    org,
-		Bucket: bucket,
-		Host:   host,
-		Token:  os.Getenv("INFLUX_TOKEN"),
-		ID:     id,
+		Org:         org,
+		Bucket:      bucket,
+		Host:        host,
+		Token:       os.Getenv("INFLUX_TOKEN"),
+		Measurement: measurement,
 		DNS: struct {
 			Target string
 			Host   string

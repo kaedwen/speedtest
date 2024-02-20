@@ -139,31 +139,23 @@ func (h *TestHandler) test(ctx context.Context) ([]TestResult, bool, error) {
 func (h *TestHandler) save(ctx context.Context, result *TestResult, dns bool) error {
 	writeAPI := h.client.WriteAPIBlocking(h.cnf.Org, h.cnf.Bucket)
 
-	dp := influxdb2.NewPointWithMeasurement("download").
-		AddTag("id", h.cnf.ID).
-		AddField("connected", utils.Btoi(dns)).
-		AddField("value", 0)
-
-	up := influxdb2.NewPointWithMeasurement("upload").
-		AddTag("id", h.cnf.ID).
-		AddField("connected", utils.Btoi(dns)).
-		AddField("value", 0)
+	p := influxdb2.NewPointWithMeasurement(h.cnf.Measurement).
+		AddField("connected", false).
+		AddField("distance", float64(0)).
+		AddField("latency", float64(0)).
+		AddField("download", float64(0)).
+		AddField("upload", float64(0))
 
 	if result.Success {
-		dp = dp.AddTag("server", result.Server).
+		p.AddTag("server", result.Server).
 			AddTag("host", result.Host).
 			AddField("distance", result.Distance).
-			AddField("latency", result.Latency).
-			AddField("value", result.Download)
-
-		up = up.AddTag("server", result.Server).
-			AddTag("host", result.Host).
-			AddField("distance", result.Distance).
-			AddField("latency", result.Latency).
-			AddField("value", result.Upload)
+			AddField("latency", float64(result.Latency.Milliseconds())).
+			AddField("download", result.Download).
+			AddField("upload", result.Upload)
 	}
 
-	err := writeAPI.WritePoint(ctx, dp, up)
+	err := writeAPI.WritePoint(ctx, p)
 	if err != nil {
 		return err
 	}
