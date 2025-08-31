@@ -12,6 +12,7 @@ func init() {
 	TryReadString("INFLUX_MEASUREMENT", &InfluxMeasurement)
 	TryReadString("TEST_DNS_TARGET", &TestDNSTarget)
 	TryReadString("TEST_DNS_HOST", &TestDNSHost)
+	TryReadString("TEST_SCHEDULE", &TestSchedule)
 }
 
 func TryReadString(key string, target *string) bool {

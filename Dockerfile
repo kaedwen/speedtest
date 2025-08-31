@@ -1,10 +1,10 @@
-FROM golang:alpine AS build
+FROM golang:1-alpine AS build
 
 WORKDIR /build
 
-COPY . .
+COPY . ./
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o speedtest main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o speedtest ./cmd/main.go
 
 FROM scratch
 
