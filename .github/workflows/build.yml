@@ -16,6 +16,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: List root files
+        run: ls -al
+
+      - name: List vendor directory
+        run: ls -al vendor || echo "vendor/ does not exist"
+
       - name: Log in to registry
         uses: docker/login-action@v2
         with:
