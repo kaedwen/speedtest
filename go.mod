@@ -1,21 +1,23 @@
 module github.com/kaedwen/speedtest
 
-go 1.21
+go 1.23.0
+
+toolchain go1.24.6
 
 require (
-	github.com/influxdata/influxdb-client-go/v2 v2.13.0
-	github.com/showwin/speedtest-go v1.6.10
-	github.com/spf13/cobra v1.8.0
-	go.uber.org/zap v1.26.0
+	github.com/influxdata/influxdb-client-go/v2 v2.14.0
+	github.com/showwin/speedtest-go v1.7.10
+	github.com/spf13/cobra v1.9.1
+	go.uber.org/zap v1.27.0
 )
 
 require (
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
-	github.com/google/uuid v1.3.1 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/influxdata/line-protocol v0.0.0-20200327222509-2487e7298839 // indirect
-	github.com/oapi-codegen/runtime v1.0.0 // indirect
-	github.com/spf13/pflag v1.0.5 // indirect
-	go.uber.org/multierr v1.10.0 // indirect
-	golang.org/x/net v0.17.0 // indirect
+	github.com/influxdata/line-protocol v0.0.0-20210922203350-b1ad95c89adf // indirect
+	github.com/oapi-codegen/runtime v1.1.2 // indirect
+	github.com/spf13/pflag v1.0.7 // indirect
+	go.uber.org/multierr v1.11.0 // indirect
+	golang.org/x/net v0.43.0 // indirect
 )

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
-	"github.com/kaedwen/speedtest/pkg/utils"
+	"github.com/kaedwen/speedtest/pkg/config"
 	"github.com/showwin/speedtest-go/speedtest"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
@@ -25,19 +25,11 @@ type TestResult struct {
 
 type TestHandler struct {
 	lg     *zap.Logger
-	cnf    *utils.TestConfig
 	client influxdb2.Client
 }
 
 func NewTestHandler(lg *zap.Logger) (*TestHandler, error) {
-	cnf, err := utils.GetConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	client := influxdb2.NewClient(cnf.Host, cnf.Token)
-
-	return &TestHandler{lg, cnf, client}, nil
+	return &TestHandler{lg, influxdb2.NewClient(config.InfluxHost, config.InfluxToken)}, nil
 }
 
 func NewTestCommand(lg *zap.Logger) *cobra.Command {
@@ -82,35 +74,32 @@ func (h *TestHandler) test(ctx context.Context) ([]TestResult, bool, error) {
 	h.lg.Info("user meta", zap.Any("info", user))
 
 	serverList, _ := stc.FetchServers()
-	targets, _ := serverList.FindServer([]int{})
+	targets, _ := serverList.FindServer(nil)
 
 	results := make([]TestResult, 0, len(targets))
 
 	for _, s := range targets {
-		err := s.PingTestContext(ctx, nil)
-		if err != nil {
+		if err := s.PingTestContext(ctx, nil); err != nil {
 			return nil, false, err
 		}
 
-		err = s.DownloadTestContext(ctx)
-		if err != nil {
+		if err := s.DownloadTestContext(ctx); err != nil {
 			return nil, false, err
 		}
 
-		err = s.UploadTestContext(ctx)
-		if err != nil {
+		if err := s.UploadTestContext(ctx); err != nil {
 			return nil, false, err
 		}
 
-		h.lg.Info("result", zap.Duration("Latency", s.Latency), zap.Float64("Download", s.DLSpeed), zap.Float64("Upload", s.ULSpeed))
+		h.lg.Info("result", zap.Duration("Latency", s.Latency), zap.Float64("Download", s.DLSpeed.Mbps()), zap.Float64("Upload", s.ULSpeed.Mbps()))
 
 		results = append(results, TestResult{
 			Success:  true,
 			Server:   s.Name,
 			Host:     s.Host,
 			Latency:  s.Latency,
-			Download: s.DLSpeed * 1_000_000,
-			Upload:   s.ULSpeed * 1_000_000,
+			Download: float64(s.DLSpeed) * 8,
+			Upload:   float64(s.ULSpeed) * 8,
 			Distance: s.Distance,
 		})
 
@@ -121,12 +110,12 @@ func (h *TestHandler) test(ctx context.Context) ([]TestResult, bool, error) {
 		PreferGo: true,
 		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
 			d := net.Dialer{Timeout: 10 * time.Second}
-			return d.DialContext(ctx, network, net.JoinHostPort(h.cnf.DNS.Target, "53"))
+			return d.DialContext(ctx, network, net.JoinHostPort(config.TestDNSTarget, "53"))
 		},
 	}
 
 	dns := true
-	ip, err := r.LookupHost(context.Background(), h.cnf.DNS.Host)
+	ip, err := r.LookupHost(context.Background(), config.TestDNSHost)
 	if err != nil || len(ip) == 0 {
 		dns = false
 	}
@@ -137,9 +126,9 @@ func (h *TestHandler) test(ctx context.Context) ([]TestResult, bool, error) {
 }
 
 func (h *TestHandler) save(ctx context.Context, result *TestResult, dns bool) error {
-	writeAPI := h.client.WriteAPIBlocking(h.cnf.Org, h.cnf.Bucket)
+	writeAPI := h.client.WriteAPIBlocking(config.InfluxOrg, config.InfluxBucket)
 
-	p := influxdb2.NewPointWithMeasurement(h.cnf.Measurement).
+	p := influxdb2.NewPointWithMeasurement(config.InfluxMeasurement).
 		AddField("connected", dns).
 		AddField("distance", float64(0)).
 		AddField("latency", float64(0)).
@@ -155,8 +144,7 @@ func (h *TestHandler) save(ctx context.Context, result *TestResult, dns bool) er
 			AddField("upload", result.Upload)
 	}
 
-	err := writeAPI.WritePoint(ctx, p)
-	if err != nil {
+	if err := writeAPI.WritePoint(ctx, p); err != nil {
 		return err
 	}
 

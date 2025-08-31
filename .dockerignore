@@ -1,0 +1,8 @@
+*
+
+!cmd
+!pkg
+!vendor
+!main.go
+!go.mod
+!go.sum
