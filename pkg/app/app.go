@@ -39,6 +39,7 @@ func NewApplication(log *zap.Logger) *Application {
 
 func (a *Application) Run(ctx context.Context) error {
 	c := cron.New(cron.WithSeconds())
+	a.log.Info("scheduling tests", zap.String("schedule", config.TestSchedule))
 	_, err := c.AddFunc(config.TestSchedule, func() {
 		log := a.log.With(zap.Int64("run", a.c.Add(1)), zap.Time("at", time.Now()))
 

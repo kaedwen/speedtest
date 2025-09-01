@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/kaedwen/speedtest/pkg/app"
 	"go.uber.org/zap"
@@ -19,7 +18,7 @@ func main() {
 
 	app := app.NewApplication(log)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Hour)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	if err := app.Run(ctx); err != nil {
